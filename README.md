@@ -23,30 +23,30 @@ Snap generates HTML by calling functions. Every HTML5 tag has a corresponding Sn
 
 ```clojure
 (html)
-%% "<html></html>"
+;; "<html></html>"
 (h1)
-%% "<h1></h1>"
+;; "<h1></h1>"
 ```
 
 Content can be added to the generated HTML by providing arguments to the function calls:
 
 ```clojure
 (h2 "Great News")
-%% "<h2>Great News</h2>"
+;; "<h2>Great News</h2>"
 ```
 
 Function calls may be nested, to generate nested HTML tags:
 
 ```clojure
 (div (p "A paragraph within a div"))
-%% "<div><p>A paragraph within a div</p></div>"
+;; "<div><p>A paragraph within a div</p></div>"
 ```
 
 Functions are of arbitrary arity, so mutiple tags (and text blocks) may be nested:
 
 ```clojure
 (html (head (title "An interesting page")) (body (p "Interesting content")))
-%% "<html><head><title>An interesting page</title></head><body><p>Interesting content</p></body></html>"
+;; "<html><head><title>An interesting page</title></head><body><p>Interesting content</p></body></html>"
 ```
 
 ### Attributes
@@ -54,7 +54,7 @@ Attributes can be added by passing an erlang [proplist](http://www.erlang.org/do
 
 ```clojure
 (a [{:href "https://firstlook.org"} {:class "offsite-link"}] "First Look Media")
-%% <a href="https://firstlook.org" class="offsite-link">First Look Media</a>
+;; <a href="https://firstlook.org" class="offsite-link">First Look Media</a>
 ```
 
 Components and Composability
@@ -75,10 +75,10 @@ That function can be used in any other Snap tags, now:
   (li (red-button "panic"))
   (li (red-button "light hair on fire")))
 
-%% <ul>
-%%   <li><button class="big red rounded-corners">panic</button></li>
-%%   <li><button class="big red rounded-corners">light hair on fire</button></li>
-%% </ul>
+;; <ul>
+;;   <li><button class="big red rounded-corners">panic</button></li>
+;;   <li><button class="big red rounded-corners">light hair on fire</button></li>
+;; </ul>
 ```
 
 Data Binding
@@ -96,7 +96,7 @@ Consider a blogging platform, where an in-browser rich text editor (say, the Gua
 
 How, then, would a Snap-based system display that content?
 
-Snap implements a json-to-snap function which takes a JSON document which represents a snippit of HTML (see [JSON format](#)). and generates valid Snap source which, when run, will render the corresponding HTML.
+Snap implements a json-to-snap function which takes a JSON document which represents a snippit of HTML (see [JSON format](#)) and generates valid Snap source which, when evaluated, will render the corresponding HTML.
 
 That generated source is then compiled on the fly after being wrapped in a simple server function. An Erlang process is spawned with the newly-compiled code, which upon receipt of a message will run the created Snap function.
 
@@ -108,21 +108,21 @@ This is very rudimentary code at the moment, but here's an example of the proces
 
 ```clojure
 (let (
-  %% given an article ID, either return the existing erlang process responsible
-  %% for generating the article's HTML snippet. The second argument here is a
-  %% closure that will return the article's structured data: we'll use this function
-  %% in the case where rendering function is not yet spawned.
+  ;; given an article ID, either return the existing erlang process responsible
+  ;; for generating the article's HTML snippet. The second argument here is a
+  ;; closure that will return the article's structured data: we'll use this function
+  ;; in the case where rendering function is not yet spawned.
   render-pid (snap-util/find-or-spawn-renderer
               article-id
               (fn () (article/load-draft-content article-id)))
 
-  %% send a message to the renderer process, which will trigger content generation
+  ;; send a message to the renderer process, which will trigger content generation
   _          (erlang/send render-pid {(erlang/self)})
 
-  %% receive rendered content from process
+  ;; receive rendered content from process
   content    (receive ({res} res))
 
-  %% wrap the content in a full page
+  ;; wrap the content in a full page
   full-content (html (head (title "An Article"))
                      (body (h1 "Your article") (div content)))))
   
