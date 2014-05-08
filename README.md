@@ -57,8 +57,8 @@ Attributes can be added by passing an erlang [proplist](http://www.erlang.org/do
 ;; <a href="https://firstlook.org" class="offsite-link">First Look Media</a>
 ```
 
-Components and Composability
-----------------------------
+Components and Composition
+--------------------------
 Snap was inspired by React's [component model](http://facebook.github.io/react/docs/multiple-components.html), which encourages composition of parts into complete documents.
 
 Any function which returns HTML may be used as an argument to a Snap tag function. Consider a "red-button" function:

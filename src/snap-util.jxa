@@ -1,7 +1,20 @@
 (ns snap-util
-  (require joxa-core erlang re
+  (require joxa-core erlang re lists
            jiffy ej joxa-compiler)
   (use snap))
+
+
+;; from a json representation (as created by our editor), make a snap representation
+(defn+ json_to_snap (json)
+  (case {(erlang/is_binary json)}
+    ({:true} (erlang/iolist_to_binary [<<"\"">> json <<"\" ">>]))
+    (_ (let* (obj (erlang/element 1 json)
+                  children (ej/get {<<"content">>}    obj (list))
+                  eltype   (ej/get {<<"type">>}       obj)
+                  attrs    (ej/get {<<"attributes">>} obj (tuple (list))))
+         (erlang/iolist_to_binary ["(" eltype " "
+                                   (lists/map (fn (E) (json_to_snap E)) children)
+                                   ") "])))))
 
 ;; generate source from JSON,
 ;; wrap that source snippet in a function,
@@ -15,7 +28,7 @@
                             ["(ns " aid-list " (require erlang) (use snap)) "
                              "(defn+ render () " source ") "
                              "(defn+ render-srv () (receive ({from} (erlang/send from {(render)}) (render-srv)))) "
-                             "(defn+ runme () (let* (pid (erlang/spawn render-srv/0) _ (erlang/display {:woahwow pid})) (erlang/register :" aid-list " pid))) "])
+                             "(defn+ runme () (let* (pid (erlang/spawn render-srv/0)) (erlang/register :" aid-list " pid))) "])
 
                   ctx      (joxa-compiler/forms source2 [])
                   fun      (erlang/make_fun aid :runme 0)

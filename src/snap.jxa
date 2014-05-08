@@ -77,18 +77,6 @@
 (defmacro+ make-tags (&rest tags)
   (mktags tags))
     
-;; from a json representation (as created by our editor), make a snap representation
-(defn+ json_to_snap (json)
-  (case {(erlang/is_binary json)}
-    ({:true} (erlang/iolist_to_binary [<<"\"">> json <<"\" ">>]))
-    (_ (let* (obj (erlang/element 1 json)
-              children (ej/get {<<"content">>}    obj (list))
-              eltype   (ej/get {<<"type">>}       obj)
-              attrs    (ej/get {<<"attributes">>} obj (tuple (list))))
-         (erlang/iolist_to_binary ["(" eltype " "
-                                  (lists/map (fn (E) (json_to_snap E)) children)
-                                  ") "])))))
-
 ;; from a nested list of html strings, create a nice binary string
 (defn+ as_binary (data)
   (erlang/list_to_binary (lists/flatten data)))
