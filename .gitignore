@@ -10,3 +10,4 @@ dialyzer_warnings
 rebar.cmd
 .eunit
 deps
+.rebar

@@ -2,15 +2,12 @@
   (require joxa-core erlang re
            jiffy ej joxa-compiler)
   (use snap))
-  
-;; given an article ID as an atom, return a erlang/joxa-safe atom
-;; to be used as a registered process name
+
+;; generate source from JSON,
+;; wrap that source snippet in a function,
+;; spawn and register a server process wrapping that function.
 (defn compile-and-spawn-renderer (aid get-content)
   (joxa-core/let  (aid-list (erlang/atom_to_list aid)
-                  ;; get JSON from riak,
-                  ;; generate source from JSON,
-                  ;; wrap that source snippet in a function,
-                  ;; spawn and register a server process wrapping that function.
                   {:ok content} (get-content)
                   source        (json_to_snap content)
                                     
@@ -26,7 +23,7 @@
 
                  (erlang/whereis aid)))
 
-
+;; outside-callable function to return existing process, or spawn a new one
 (defn+ find-or-spawn-renderer (aid get-content)
   (case (erlang/whereis aid)
     (pid (when (erlang/is_pid pid))

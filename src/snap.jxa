@@ -76,45 +76,8 @@
 ;; using the mktag helper functions, define a bunch of tag functions
 (defmacro+ make-tags (&rest tags)
   (mktags tags))
-
-;; mostly stolen from joxa-shell...
-;; (defn+ eval (form)
-;;   (let* (ctx (joxa-compiler/start-interactive))    ;; make a context for eval
-;;     (joxa-cmp-ctx/namespace-name-ctx ctx :foons) ;; dunno what this does
-;;     ;; but it might mutate the namespace name in the ctx process
-;;     ;; which feels a little weird! but that's what it looks like
-;;     ;; XX check for (syntax?) error via joxa-compiler/compilable?
-;;     (let* (result (joxa-compiler/comp-interactive ctx :renderer form [])
-;;                   comp-res
-;;                   (if (joxa-compiler/compilable? ctx)
-;;                       (if (== result :expr)
-;;                           (let* (call-fun (make_fun (joxa-cmp-ctx/namespace-name-ctx ctx) :--joxa-shell 0))
-;;                             (call-fun))
-;;                         :ok)
-;;                     (if (or  (== result :expr)
-;;                              (== result :defn))
-;;                         :error
-;;                       result)))
-;;       (joxa-compiler/clear-errors ctx)
-;;       comp-res)))
-
-(defmacro+ timeme (form)
-  `(let* (now (erlang/now)
-          result ~form
-          then (erlang/now))
-    (erlang/display {now then})
-    result))
     
 ;; from a json representation (as created by our editor), make a snap representation
-;; (defn+ json_to_snap (json)
-;;   (case {(erlang/is_binary json)}
-;;     ({:true} json)
-;;     (_ (let* (obj (erlang/element 1 json)
-;;               children (ej/get {<<"content">>}    obj (list))
-;;               eltype   (ej/get {<<"type">>}       obj)
-;;               attrs    (ej/get {<<"attributes">>} obj (tuple (list))))
-;;          (cons eltype (lists/map (fn (E) (json_to_snap E)) children))))))
-
 (defn+ json_to_snap (json)
   (case {(erlang/is_binary json)}
     ({:true} (erlang/iolist_to_binary [<<"\"">> json <<"\" ">>]))
@@ -126,6 +89,7 @@
                                   (lists/map (fn (E) (json_to_snap E)) children)
                                   ") "])))))
 
+;; from a nested list of html strings, create a nice binary string
 (defn+ as_binary (data)
   (erlang/list_to_binary (lists/flatten data)))
 
