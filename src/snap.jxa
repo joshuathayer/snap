@@ -1,0 +1,176 @@
+(ns snap
+  (require lists string erlang joxa-lists io joxa-core io_lib ej
+           joxa-shell joxa-compiler joxa-cmp-ctx
+           (proplists :joxify))
+  (use
+    (joxa-core :only (if/3))
+    (joxa-lists :only (hd/1 tl/1))
+    (erlang :only (</2 >/2 -/2 +/2 element/2 atom_to_list/1
+                       is_tuple/1 hd/1 ==/2 or/2 make_fun/3))))
+
+(defn+ attrs-to-string (attrs)
+  (list " " (string/join
+             (lists/map (fn (attr)
+                          (let* (key (erlang/atom_to_list (erlang/element 1 attr))
+                                 val (erlang/element 2 attr))
+                            (lists/flatten (list key "=\"" val "\""))))
+                        attrs)
+             " ")))
+  
+(defn is_attributes (data)
+  (erlang/is_tuple (hd data)))
+
+;; (mktag/1)
+;; Used by the (make-tags) macro (via mktags/1) to generate tag functions.
+;;
+;; Given a string which represents an HTML5 tag name ("button", eg), return code which
+;; when evaluated defines two functions: (<tagname>/1) and (<tagname>/2+). Those functions
+;; should accept three types of arguments:
+;;   * an empty list, which is ignored
+;;   * an optional proplist of attributes (in the form [{:class "name"} {:id "thename"}]),
+;;     which must be in the first position.
+;;   * child strings, which represent the contents of the HTML tag
+;;
+;; Some legal example calls:
+;; (br)                                                ;; "0" arity (but see below)
+;; (p [{:class "story"}])                              ;; first arg is attributes
+;; (p "This is a paragraph")                           ;; first arg is a child
+;; (p [{:class "story"}] "This is a paragraph")        ;; first arg is attributes, subsequent args are children
+;; (p "This is a sentence. " "And here is another.")   ;; first arg is a child, subsequent args are children
+(defn+ mktag (t)
+  (let* (tag (erlang/list_to_atom t))
+         
+    `(do
+       
+       ;; 2+ arity case: tag is being called with more than one argument, meaning
+       ;; the first argument may be a child or a proplist of attributes,
+       ;; but subsequent args will be children.
+       (defn+ ~tag (attrs-or-child &rest children)
+         (let* (attr?     (is_attributes attrs-or-child)
+                attrs     (if attr? (attrs-to-string attrs-or-child) "")     ;; we have an attr string
+                children2 (if attr? children (cons attrs-or-child children))) ;; we have a single child
+         
+           (list "<" ~@t attrs ">" children2 "</" ~@t ">")))
+       
+       ;; 1-arity case: tag is being called with exactly one argument, which
+       ;; may be an empty list, an attribute proplist, or may be a child tag.
+       ;; strangely (?), a call like "(br)" seems always to provide an argument of an empty list.
+       ;; thus, this construction (rather be defining (br/0), which makes more sense to me).
+       (defn+ ~tag (attrs-or-child)
+         (if (> (erlang/length attrs-or-child) 0)
+             
+             ;; there's a non-empty argument
+             (let* (attr?    (is_attributes attrs-or-child)
+                    attrs    (if attr? (attrs-to-string attrs-or-child) "") ;; we have an attr string
+                    children (if attr? "" attrs-or-child))                  ;; we have a single child
+
+               (list "<" ~@t attrs ">" children "</" ~@t ">"))
+           
+           ;; there is no child or attributes
+           (list "<" ~@t "></" ~@t ">"))))))
+         
+;; helper function for (make-tags)
+(defn mktags (ts)
+  `(do ~@(lists/map (fn (tag) (mktag (erlang/atom_to_list tag))) ts)))
+
+;; using the mktag helper functions, define a bunch of tag functions
+(defmacro+ make-tags (&rest tags)
+  (mktags tags))
+
+;; mostly stolen from joxa-shell...
+;; (defn+ eval (form)
+;;   (let* (ctx (joxa-compiler/start-interactive))    ;; make a context for eval
+;;     (joxa-cmp-ctx/namespace-name-ctx ctx :foons) ;; dunno what this does
+;;     ;; but it might mutate the namespace name in the ctx process
+;;     ;; which feels a little weird! but that's what it looks like
+;;     ;; XX check for (syntax?) error via joxa-compiler/compilable?
+;;     (let* (result (joxa-compiler/comp-interactive ctx :renderer form [])
+;;                   comp-res
+;;                   (if (joxa-compiler/compilable? ctx)
+;;                       (if (== result :expr)
+;;                           (let* (call-fun (make_fun (joxa-cmp-ctx/namespace-name-ctx ctx) :--joxa-shell 0))
+;;                             (call-fun))
+;;                         :ok)
+;;                     (if (or  (== result :expr)
+;;                              (== result :defn))
+;;                         :error
+;;                       result)))
+;;       (joxa-compiler/clear-errors ctx)
+;;       comp-res)))
+
+(defmacro+ timeme (form)
+  `(let* (now (erlang/now)
+          result ~form
+          then (erlang/now))
+    (erlang/display {now then})
+    result))
+    
+;; from a json representation (as created by our editor), make a snap representation
+;; (defn+ json_to_snap (json)
+;;   (case {(erlang/is_binary json)}
+;;     ({:true} json)
+;;     (_ (let* (obj (erlang/element 1 json)
+;;               children (ej/get {<<"content">>}    obj (list))
+;;               eltype   (ej/get {<<"type">>}       obj)
+;;               attrs    (ej/get {<<"attributes">>} obj (tuple (list))))
+;;          (cons eltype (lists/map (fn (E) (json_to_snap E)) children))))))
+
+(defn+ json_to_snap (json)
+  (case {(erlang/is_binary json)}
+    ({:true} (erlang/iolist_to_binary [<<"\"">> json <<"\" ">>]))
+    (_ (let* (obj (erlang/element 1 json)
+              children (ej/get {<<"content">>}    obj (list))
+              eltype   (ej/get {<<"type">>}       obj)
+              attrs    (ej/get {<<"attributes">>} obj (tuple (list))))
+         (erlang/iolist_to_binary ["(" eltype " "
+                                  (lists/map (fn (E) (json_to_snap E)) children)
+                                  ") "])))))
+
+(defn+ as_binary (data)
+  (erlang/list_to_binary (lists/flatten data)))
+
+;; with thanks https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5/HTML5_element_list
+(make-tags
+ ;; root
+ html
+ 
+ ;; document metadata
+ head title base link meta style
+
+ ;; scripting
+ script noscript template
+
+ ;; sections
+ body section nav article aside
+ h1 h2 h3 h4 h5 h6
+ header footer address main
+
+ ;; grouping
+ p hr pre blockquote ol ul li dl
+ dt dd figure figcaption div
+
+ ;; text-level semantics
+ a em strong small s cite q dfn abbr
+ data time code var samp kbd sub sup
+ i b u mark ruby rt rp bdi bdo span
+ br wbr
+ 
+ ;; edits
+ ins del
+ 
+ ;; embedded content
+ img iframe embed object param video
+ audio source track canvas map area
+ svg math
+ 
+ ;; tabular
+ table caption colgroup col tbody thead
+ tfoot tr td th
+
+ ;; forms
+ form fieldset legend label input button
+ select datalist optgroup option textarea
+ keygen output progress meter
+ 
+ ;; interactive
+ details summary menuitem menu)
