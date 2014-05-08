@@ -65,10 +65,10 @@ Any function which returns HTML may be used as an argument to a Snap tag functio
 
 ```clojure
 (defn+ red-button (button-text)
-  (button [:class "big red rounded-corners"] button-text))
+  (button [{:class "big red rounded-corners"}] button-text))
 ```
 
-That function can be used in any other Snap tags, now
+That function can be used in any other Snap tags, now:
 
 ```clojure
 (ul
@@ -77,7 +77,7 @@ That function can be used in any other Snap tags, now
 
 %% <ul>
 %%   <li><button class="big red rounded-corners">panic</button></li>
-%%   <li><button class="big red rounded-corners">panic</button></li>
+%%   <li><button class="big red rounded-corners">light hair on fire</button></li>
 %% </ul>
 ```
 
@@ -117,7 +117,10 @@ This is very rudimentary code at the moment, but here's an example of the proces
               (fn () (article/load-draft-content article-id)))
 
   %% send a message to the renderer process, which will trigger content generation
-  content (erlang/send render-pid {(erlang/self)})
+  _          (erlang/send render-pid {(erlang/self)})
+
+  %% receive rendered content from process
+  content    (receive ({res} res))
 
   %% wrap the content in a full page
   full-content (html (head (title "An Article"))
